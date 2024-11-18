@@ -115,6 +115,15 @@ ID2D1Bitmap* bmpShot[33]{ nullptr };
 
 //////////////////////////////////////////////////
 
+// GAME VARS ************************************
+
+dll::creature_ptr Hero{ nullptr };
+std::vector<dll::creature_ptr>vZombies;
+
+
+
+
+///////////////////////////////////////////////////
 template<typename T>concept InHeap = requires(T check_var)
 {
     check_var.Release();
@@ -195,6 +204,12 @@ void InitGame()
     secs = 290 + level * 10;
     wcscpy_s(current_player, L"ONE CAPTAIN");
     name_set = false;
+
+    ClearHeap(&Hero);
+    Hero = dll::CreatureFactory(hero_flag, RandGenerator(0, (int)(scr_width - 100.0f)), (int)(ground - 80.0f));
+    if (!vZombies.empty())
+        for (int i = 0; i < vZombies.size(); i++)ClearHeap(&vZombies[i]);
+    vZombies.clear();
 
 }
 
@@ -762,6 +777,38 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         }
         //////////////////////////////////////////////////////
 
+        // GAME ENGINE **************************************
+
+        if (vZombies.size() < 15 + level)
+        {
+            if (RandGenerator(0, 50) - level == 6)
+            {
+                int type = RandGenerator(0, 2);
+
+                switch (type)
+                {
+                case 0:
+                    vZombies.push_back(dll::CreatureFactory(zombie1_flag, scr_width, (float)(RandGenerator(50, int(ground - 50)))));
+                    break;
+
+                case 1:
+                    vZombies.push_back(dll::CreatureFactory(zombie2_flag, scr_width, (float)(RandGenerator(50, int(ground - 50)))));
+                    break;
+
+                case 3:
+                    vZombies.push_back(dll::CreatureFactory(zombie1_flag, scr_width, (float)(RandGenerator(50, int(ground - 50)))));
+                    break;
+                }
+            }
+        }
+
+        if (!vZombies.empty() && Hero)
+        {
+            for (std::vector<dll::creature_ptr>::iterator evil = vZombies.begin(); evil < vZombies.end(); evil++)
+            {
+                (*evil)->Move(true, Hero->x, Hero->y);
+            }
+        }
 
 
 
@@ -793,6 +840,53 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         Draw->DrawBitmap(bmpField, D2D1::RectF(0, 50.0f, scr_width, scr_height));
 
+        if (Hero)
+        {
+            switch (Hero->dir)
+            {
+            case dirs::left:
+                Draw->DrawBitmap(bmpHeroL[Hero->GetFrame()], Resizer(bmpHeroL[Hero->GetFrame()], Hero->x, Hero->y));
+                break;
+
+            case dirs::right:
+                Draw->DrawBitmap(bmpHeroR[Hero->GetFrame()], Resizer(bmpHeroR[Hero->GetFrame()], Hero->x, Hero->y));
+                break;
+            }
+        }
+
+        if (!vZombies.empty() && Hero)
+        {
+            for (std::vector<dll::creature_ptr>::iterator evil = vZombies.begin(); evil < vZombies.end(); evil++)
+            {
+                if ((*evil)->GetFlag(zombie1_flag))
+                {
+                    if ((*evil)->x >= Hero->ex)
+                        Draw->DrawBitmap(bmpZombie1L[(*evil)->GetFrame()], Resizer(bmpZombie1L[(*evil)->GetFrame()],
+                            (*evil)->x, (*evil)->y));
+                    else
+                        Draw->DrawBitmap(bmpZombie1R[(*evil)->GetFrame()], Resizer(bmpZombie1R[(*evil)->GetFrame()],
+                            (*evil)->x, (*evil)->y));
+                }
+                if ((*evil)->GetFlag(zombie2_flag))
+                {
+                    if ((*evil)->x >= Hero->ex)
+                        Draw->DrawBitmap(bmpZombie2L[(*evil)->GetFrame()], Resizer(bmpZombie2L[(*evil)->GetFrame()],
+                            (*evil)->x, (*evil)->y));
+                    else
+                        Draw->DrawBitmap(bmpZombie2R[(*evil)->GetFrame()], Resizer(bmpZombie2R[(*evil)->GetFrame()],
+                            (*evil)->x, (*evil)->y));
+                }
+                if ((*evil)->GetFlag(zombie3_flag))
+                {
+                    if ((*evil)->x >= Hero->ex)
+                        Draw->DrawBitmap(bmpZombie3L[(*evil)->GetFrame()], Resizer(bmpZombie3L[(*evil)->GetFrame()],
+                            (*evil)->x, (*evil)->y));
+                    else
+                        Draw->DrawBitmap(bmpZombie3R[(*evil)->GetFrame()], Resizer(bmpZombie3R[(*evil)->GetFrame()],
+                            (*evil)->x, (*evil)->y));
+                }
+            }
+        }
 
 
         //////////////////////////////////////////////////////////
