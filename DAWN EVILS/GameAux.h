@@ -128,7 +128,6 @@ namespace dll
 			int max_frames{};
 			int frame_delay{};
 
-			int strenght{};
 			int attack_delay{};
 
 			float speed{};
@@ -138,6 +137,7 @@ namespace dll
 		public:
 
 			int lifes{ 0 };
+			int strenght{};
 			dirs dir{ dirs::right };
 			unsigned char obstacle_flags = 0b00000000;
 

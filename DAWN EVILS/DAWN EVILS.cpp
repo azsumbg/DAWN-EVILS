@@ -245,6 +245,65 @@ void InitGame()
         }
     }
 }
+void LevelUp()
+{
+    if (Draw && bigTextFormat && txtBrush)
+    {
+        Draw->BeginDraw();
+        Draw->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
+        Draw->DrawTextW(L"НИВОТО ПРЕМИНАТО !", 19, bigTextFormat, D2D1::RectF(50.0f, scr_height / 2 - 80.0f,
+            scr_width, scr_height), txtBrush);
+        Draw->EndDraw();
+    }
+
+    if (sound)
+    {
+        PlaySound(NULL, NULL, NULL);
+        PlaySound(L".\\res\\snd\\levelup.wav", NULL, SND_SYNC);
+        PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
+    }
+
+    ++level;
+    secs = 290 + level * 10;
+    ClearHeap(&Hero);
+    Hero = dll::CreatureFactory(hero_flag, (float)(RandGenerator(0, (int)(scr_width - 100.0f))), (int)(ground - 80.0f));
+    if (!vZombies.empty())
+        for (int i = 0; i < vZombies.size(); i++)ClearHeap(&vZombies[i]);
+    vZombies.clear();
+    if (!vBullets.empty())
+        for (int i = 0; i < vBullets.size(); i++)ClearHeap(&vBullets[i]);
+    vBullets.clear();
+
+    vTrees.clear();
+
+    for (float rows = 100.0f; rows < ground - 100.0f; rows += 100.0f)
+    {
+        for (float cols = 50.0f; cols < scr_width - 100.0f; cols += 100.0f)
+        {
+            if (RandGenerator(0, 4) == 1)
+            {
+                vTrees.push_back(dll::PROTON(cols, rows));
+                switch (RandGenerator(0, 2))
+                {
+                case 0:
+                    vTrees.back().SetFlag(tree1_flag);
+                    vTrees.back().NewDims(47.0f, 80.0f);
+                    break;
+
+                case 1:
+                    vTrees.back().SetFlag(tree2_flag);
+                    vTrees.back().NewDims(78.0f, 86.0f);
+                    break;
+
+                case 3:
+                    vTrees.back().SetFlag(tree3_flag);
+                    vTrees.back().NewDims(98.0f, 90.0f);
+                    break;
+                }
+            }
+        }
+    }
+}
 
 INT_PTR CALLBACK bDlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -327,6 +386,7 @@ LRESULT CALLBACK bWinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
         if (pause)break;
         --secs;
         mins = secs / 60;
+        if (secs < 0)LevelUp();
         break;
 
     case WM_SETCURSOR:
@@ -924,6 +984,49 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 }
             }
         }
+        
+        if (!vBullets.empty() && !vZombies.empty())
+        {
+            for (std::vector<dll::creature_ptr>::iterator zombie = vZombies.begin(); zombie < vZombies.end(); zombie++)
+            {
+                bool killed = false;
+                for (std::vector<dll::creature_ptr>::iterator bullet = vBullets.begin(); bullet < vBullets.end(); bullet++)
+                {
+                    if (!((*zombie)->x > (*bullet)->ex || (*zombie)->ex<(*bullet)->x
+                        || (*zombie)->y>(*bullet)->ey || (*zombie)->ey < (*bullet)->y))
+                    {
+                        (*zombie)->lifes -= (*bullet)->strenght;
+                        (*bullet)->Release();
+                        vBullets.erase(bullet);
+                        if ((*zombie)->lifes <= 0)
+                        {
+                            (*zombie)->Release();
+                            vZombies.erase(zombie);
+                            score += 10 + level;
+                            killed = true;
+                            break;
+                        }
+                        break;
+                    }
+                }
+                if (killed)break;
+            }
+        }
+
+        if (Hero && !vZombies.empty())
+        {
+            for (std::vector<dll::creature_ptr>::iterator zombie = vZombies.begin(); zombie < vZombies.end(); zombie++)
+            {
+                if (!(Hero->x > (*zombie)->ex || Hero->ex<(*zombie)->x || Hero->y>(*zombie)->ey || Hero->ey < (*zombie)->y))
+                {
+                    Hero->lifes -= (*zombie)->Attack();
+                    if (Hero->lifes <= 0)
+                    {
+                        GameOver();
+                    }
+                }
+            }
+        }
 
         // DRAW THINGS *********************************************
 
@@ -964,6 +1067,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 Draw->DrawBitmap(bmpHeroR[Hero->GetFrame()], Resizer(bmpHeroR[Hero->GetFrame()], Hero->x, Hero->y));
                 break;
             }
+            Draw->DrawLine(D2D1::Point2F(Hero->x - 5.0f, Hero->ey + 10.0f),
+                D2D1::Point2F(Hero->x + (float)(Hero->lifes / 5), Hero->ey + 10.0f), txtBrush, 10.0f);        
         }
 
         if (!vZombies.empty() && Hero)
