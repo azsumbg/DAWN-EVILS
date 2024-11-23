@@ -119,9 +119,10 @@ ID2D1Bitmap* bmpShot[33]{ nullptr };
 
 dll::creature_ptr Hero{ nullptr };
 std::vector<dll::creature_ptr>vZombies;
+std::vector<dll::creature_ptr>vBullets;
+std::vector<dll::PROTON>vTrees;
 
-
-
+bool stop_hero = false;
 
 ///////////////////////////////////////////////////
 template<typename T>concept InHeap = requires(T check_var)
@@ -206,13 +207,44 @@ void InitGame()
     name_set = false;
 
     ClearHeap(&Hero);
-    Hero = dll::CreatureFactory(hero_flag, RandGenerator(0, (int)(scr_width - 100.0f)), (int)(ground - 80.0f));
+    Hero = dll::CreatureFactory(hero_flag, (float)(RandGenerator(0, (int)(scr_width - 100.0f))), (int)(ground - 80.0f));
     if (!vZombies.empty())
         for (int i = 0; i < vZombies.size(); i++)ClearHeap(&vZombies[i]);
     vZombies.clear();
+    if (!vBullets.empty())
+        for (int i = 0; i < vBullets.size(); i++)ClearHeap(&vBullets[i]);
+    vBullets.clear();
+   
+    vTrees.clear();
 
+    for (float rows = 100.0f; rows < ground - 100.0f; rows += 100.0f)
+    {
+        for (float cols = 50.0f; cols < scr_width - 100.0f; cols += 100.0f)
+        {
+            if (RandGenerator(0, 4) == 1)
+            {
+                vTrees.push_back(dll::PROTON(cols, rows));
+                switch (RandGenerator(0, 2))
+                {
+                case 0:
+                    vTrees.back().SetFlag(tree1_flag);
+                    vTrees.back().NewDims(47.0f, 80.0f);
+                    break;
+
+                case 1:
+                    vTrees.back().SetFlag(tree2_flag);
+                    vTrees.back().NewDims(78.0f, 86.0f);
+                    break;
+
+                case 3:
+                    vTrees.back().SetFlag(tree3_flag);
+                    vTrees.back().NewDims(98.0f, 90.0f);
+                    break;
+                }
+            }
+        }
+    }
 }
-
 
 INT_PTR CALLBACK bDlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -397,6 +429,24 @@ LRESULT CALLBACK bWinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
 
         }
         break;
+
+    case WM_LBUTTONDOWN:
+        if (HIWORD(lParam <= 50))
+        {
+
+        }
+        else
+        {
+            stop_hero = false;
+            if (Hero)Hero->Move(true, LOWORD(lParam), HIWORD(lParam));
+        }
+        break;
+
+    case WM_RBUTTONDOWN:
+        stop_hero = true;
+        break;
+
+
 
     default: return DefWindowProc(hwnd, ReceivedMsg, wParam, lParam);
     }
@@ -810,8 +860,70 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             }
         }
 
+        if (Hero)
+        {
+            if (!stop_hero)
+            {
+                bool obstacle_hit = false;
+                if (!vTrees.empty())
+                {
+                    for (int i = 0; i < vTrees.size(); ++i)
+                    {
+                        if (!(Hero->x >= vTrees[i].ex || Hero->ex <= vTrees[i].x
+                            || Hero->y >= vTrees[i].ey || Hero->ey <= vTrees[i].y))
+                        {
+                            Hero->ObstacleDetour(vTrees[i]);
+                            obstacle_hit = true;
+                            break;
+                        }
+                    }
+                }
 
+                if (!obstacle_hit) Hero->Move(false);
+            }
 
+            int bull_strenght = Hero->Attack();
+            if (bull_strenght > 0 && !vZombies.empty())
+            {
+                dll::PROT_CONTAINER Targets(vZombies.size());
+                for (int i = 0; i < vZombies.size(); ++i)
+                {
+                    dll::PROTON Dummy{ vZombies[i]->x, vZombies[i]->y };
+                    Targets.push_back(Dummy);
+                }
+                dll::PROTON HeroPosition{ Hero->x,Hero->y };
+                Targets.distance_sort(HeroPosition);
+
+                vBullets.push_back(dll::CreatureFactory(bullet_flag, Hero->ex, Hero->y + 20.0f, Targets[0].x, Targets[0].y));
+            }
+        }
+
+        if (!vBullets.empty())
+        {
+            for (std::vector<dll::creature_ptr>::iterator bullet = vBullets.begin(); bullet < vBullets.end(); ++bullet)
+            {
+                (*bullet)->Move(false);
+                if ((*bullet)->x <= 0 || (*bullet)->ex >= scr_width || (*bullet)->y <= sky || (*bullet)->ey >= ground)
+                {
+                    (*bullet)->Release();
+                    vBullets.erase(bullet);
+                    break;
+                }
+            }
+        }
+
+        if (!vTrees.empty() && !vZombies.empty())
+        {
+            for (std::vector<dll::creature_ptr>::iterator zombie = vZombies.begin(); zombie < vZombies.end(); zombie++)
+            {
+                for (int i = 0; i < vTrees.size(); i++)
+                {
+                    if (!((*zombie)->x >= vTrees[i].ex || (*zombie)->ex <= vTrees[i].x
+                        || (*zombie)->y >= vTrees[i].ey || (*zombie)->ey <= vTrees[i].y))
+                        (*zombie)->ObstacleDetour(vTrees[i]);
+                }
+            }
+        }
 
         // DRAW THINGS *********************************************
 
@@ -839,7 +951,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
         }
 
         Draw->DrawBitmap(bmpField, D2D1::RectF(0, 50.0f, scr_width, scr_height));
-
+        
         if (Hero)
         {
             switch (Hero->dir)
@@ -888,6 +1000,27 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             }
         }
 
+        if (!vBullets.empty())
+        {
+            for (int i = 0; i < vBullets.size(); ++i)
+            {
+                int one_frame = vBullets[i]->GetFrame();
+                Draw->DrawBitmap(bmpShot[one_frame], Resizer(bmpShot[one_frame], vBullets[i]->x, vBullets[i]->y));
+            }
+        }
+
+        if (!vTrees.empty())
+        {
+            for (int i = 0; i < vTrees.size(); i++)
+            {
+                if (vTrees[i].GetFlag(tree1_flag))
+                    Draw->DrawBitmap(bmpTree1, D2D1::RectF(vTrees[i].x, vTrees[i].y, vTrees[i].ex, vTrees[i].ey));
+                else if (vTrees[i].GetFlag(tree2_flag))
+                    Draw->DrawBitmap(bmpTree2, D2D1::RectF(vTrees[i].x, vTrees[i].y, vTrees[i].ex, vTrees[i].ey));
+                else
+                    Draw->DrawBitmap(bmpTree3, D2D1::RectF(vTrees[i].x, vTrees[i].y, vTrees[i].ex, vTrees[i].ey));
+            }
+        }
 
         //////////////////////////////////////////////////////////
 

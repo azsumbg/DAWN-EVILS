@@ -25,6 +25,15 @@ constexpr unsigned char tree3_flag{ 0b01000000 };
 
 constexpr unsigned char bullet_flag{ 0b10000000 };
 
+constexpr unsigned char obstacle_up{ 0b00000001 };
+constexpr unsigned char obstacle_down{ 0b00000010 };
+constexpr unsigned char obstacle_left{ 0b00000100 };
+constexpr unsigned char obstacle_right{ 0b00001000 };
+constexpr unsigned char obstacle_up_left{ 0b00000101 };
+constexpr unsigned char obstacle_up_right{ 0b00001001 };
+constexpr unsigned char obstacle_down_left{ 0b00000110 };
+constexpr unsigned char obstacle_down_right{ 0b00001010 };
+
 enum class dirs { left = 0, right = 1, up = 2, down = 3, stop = 4 };
 
 namespace dll
@@ -130,6 +139,7 @@ namespace dll
 
 			int lifes{ 0 };
 			dirs dir{ dirs::right };
+			unsigned char obstacle_flags = 0b00000000;
 
 			BASE_CREATURE(unsigned char type, float startX, float startY);
 			virtual ~BASE_CREATURE() {};
@@ -139,6 +149,8 @@ namespace dll
 			virtual void Release() = 0;
 			virtual void Move(bool need_new_path = false, float dest_x = 0, float dest_y = 0, float gear=  1.0f) = 0;
 			int Attack();
+
+			void ObstacleDetour(PROTON& Obstacle);
 	};
 
 	typedef BASE_CREATURE* creature_ptr;
