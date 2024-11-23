@@ -202,7 +202,7 @@ void InitGame()
 {
     level = 1;
     score = 0;
-    secs = 290 + level * 10;
+    secs = 170 + level * 10;
     wcscpy_s(current_player, L"ONE CAPTAIN");
     name_set = false;
 
@@ -221,7 +221,7 @@ void InitGame()
     {
         for (float cols = 50.0f; cols < scr_width - 100.0f; cols += 100.0f)
         {
-            if (RandGenerator(0, 4) == 1)
+            if (RandGenerator(0, 5) == 1)
             {
                 vTrees.push_back(dll::PROTON(cols, rows));
                 switch (RandGenerator(0, 2))
@@ -264,7 +264,7 @@ void LevelUp()
     }
 
     ++level;
-    secs = 290 + level * 10;
+    secs = 170 + level * 10;
     ClearHeap(&Hero);
     Hero = dll::CreatureFactory(hero_flag, (float)(RandGenerator(0, (int)(scr_width - 100.0f))), (int)(ground - 80.0f));
     if (!vZombies.empty())
@@ -280,7 +280,7 @@ void LevelUp()
     {
         for (float cols = 50.0f; cols < scr_width - 100.0f; cols += 100.0f)
         {
-            if (RandGenerator(0, 4) == 1)
+            if (RandGenerator(0, 5) == 1)
             {
                 vTrees.push_back(dll::PROTON(cols, rows));
                 switch (RandGenerator(0, 2))
@@ -809,7 +809,7 @@ void CreateResources()
             hr = iWriteFactory->CreateTextFormat(L"SEGOE", NULL, DWRITE_FONT_WEIGHT_EXTRA_BLACK, DWRITE_FONT_STYLE_OBLIQUE,
                 DWRITE_FONT_STRETCH_NORMAL, 24, L"", &nrmTextFormat);
             hr = iWriteFactory->CreateTextFormat(L"SEGOE", NULL, DWRITE_FONT_WEIGHT_EXTRA_BLACK, DWRITE_FONT_STYLE_OBLIQUE,
-                DWRITE_FONT_STRETCH_NORMAL, 36, L"", &midTextFormat);
+                DWRITE_FONT_STRETCH_NORMAL, 32, L"", &midTextFormat);
             hr = iWriteFactory->CreateTextFormat(L"SEGOE", NULL, DWRITE_FONT_WEIGHT_EXTRA_BLACK, DWRITE_FONT_STYLE_OBLIQUE,
                 DWRITE_FONT_STRETCH_NORMAL, 72, L"", &bigTextFormat);
 
@@ -905,8 +905,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                     vZombies.push_back(dll::CreatureFactory(zombie2_flag, scr_width, (float)(RandGenerator(50, int(ground - 50)))));
                     break;
 
-                case 3:
-                    vZombies.push_back(dll::CreatureFactory(zombie1_flag, scr_width, (float)(RandGenerator(50, int(ground - 50)))));
+                case 2:
+                    vZombies.push_back(dll::CreatureFactory(zombie3_flag, scr_width, (float)(RandGenerator(50, int(ground - 50)))));
                     break;
                 }
             }
@@ -1055,6 +1055,37 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
         Draw->DrawBitmap(bmpField, D2D1::RectF(0, 50.0f, scr_width, scr_height));
         
+        if (Draw && midTextFormat && hgltBrush)
+        {
+            wchar_t stat_txt[250] = L"ИГРАЧ: ";
+            wchar_t add[5] = L"\0";
+            int stat_size = 0;
+
+            wcscat_s(stat_txt, current_player);
+            
+            wcscat_s(stat_txt, L", ВРЕМЕ: 0");
+            wsprintf(add, L"%d", mins);
+            wcscat_s(stat_txt, add);
+            wcscat_s(stat_txt, L" : ");
+
+            if (secs - mins * 60 < 10)wcscat_s(stat_txt, L"0");
+            wsprintf(add, L"%d", secs - mins * 60);
+            wcscat_s(stat_txt, add);
+
+            wcscat_s(stat_txt, L", РЕЗУЛТАТ: ");
+            wsprintf(add, L"%d", score);
+            wcscat_s(stat_txt, add);
+
+            for (int i = 0; i < 250; i++)
+            {
+                if (stat_txt[i] != '\0')stat_size++;
+                else break;
+            }
+
+            Draw->DrawTextW(stat_txt, stat_size, midTextFormat, D2D1::RectF(10.0f, ground - 50.0f, scr_width, scr_height), 
+                hgltBrush);
+        }
+
         if (Hero)
         {
             switch (Hero->dir)
