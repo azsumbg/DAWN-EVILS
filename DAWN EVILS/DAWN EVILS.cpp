@@ -36,7 +36,7 @@ constexpr int mHoF{ 1006 };
 
 constexpr int record{ 2001 };
 constexpr int first_record{ 2002 };
-constexpr int rno_ecord{ 2003 };
+constexpr int no_record{ 2003 };
 
 WNDCLASS bWin{};
 HINSTANCE bIns = nullptr;
@@ -123,6 +123,10 @@ std::vector<dll::creature_ptr>vBullets;
 std::vector<dll::PROTON>vTrees;
 
 bool stop_hero = false;
+bool killed_hero = false;
+
+float RIP_x{ 0 };
+float RIP_y{ 0 };
 
 ///////////////////////////////////////////////////
 template<typename T>concept InHeap = requires(T check_var)
@@ -188,12 +192,213 @@ void ErrExit(int what)
     std::remove(tmp_file);
     exit(1);
 }
+void HallOfFame()
+{
+    int result{ 0 };
+    CheckFile(record_file, &result);
 
+    if (result == FILE_NOT_EXIST)
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+        MessageBox(bHwnd, L"Все още няма рекорд на играта !\n\nПостарай се повече !", L"Липсва файл !",
+            MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+        return;
+    }
+
+    wchar_t rec_txt[100]{ L"НАЙ-ДОБЪР ИГРАЧ: " };
+    wchar_t saved_player[16]{ L"\0" };
+    wchar_t saved_score[5]{ L"\0" };
+    result = 0;
+
+    std::wifstream rec(record_file);
+    rec >> saved_score;
+    for (int i = 0; i < 16; ++i)
+    {
+        int letter = 0;
+        rec >> letter;
+        saved_player[i] = static_cast<wchar_t>(letter);
+    }
+    rec.close();
+
+    wcscat_s(rec_txt, saved_player);
+    wcscat_s(rec_txt, L"\n\nСВЕТОВЕН РЕКОРД : ");
+    wcscat_s(rec_txt, saved_score);
+
+    for (int i = 0; i < 100; ++i)
+        if (rec_txt[i] != '\0')++result;
+        else break;
+    if (Draw &&bigTextFormat && hgltBrush)
+    {
+        Draw->BeginDraw();
+        Draw->Clear(D2D1::ColorF(D2D1::ColorF::DarkKhaki));
+        Draw->DrawTextW(rec_txt, result, bigTextFormat, D2D1::RectF(10.0f, 150.0f, scr_width, scr_height), hgltBrush);
+        Draw->EndDraw();
+        if (sound)mciSendString(L"play .\\res\\snd\\showrec.wav", NULL, NULL, NULL);
+        Sleep(3500);
+    }
+}
+BOOL CheckRecord()
+{
+    if (score < 1)return no_record;
+    int is_ok{ 0 };
+
+    CheckFile(record_file, &is_ok);
+    if (is_ok == FILE_NOT_EXIST)
+    {
+        std::wofstream rec(record_file);
+        rec << score << std::endl;
+        for (int i = 0; i < 16; i++)rec << static_cast<int>(current_player[i]) << std::endl;
+        rec.close();
+        return first_record;
+    }
+    else
+    {
+        std::wifstream check(record_file);
+        int result{ 0 };
+        check >> result;
+        check.close();
+        if (result < score)
+        {
+            std::wofstream rec(record_file);
+            rec << score << std::endl;
+            for (int i = 0; i < 16; i++)rec << static_cast<int>(current_player[i]) << std::endl;
+            rec.close();
+            return record;
+        }
+    }
+
+    return no_record;
+}
 void GameOver()
 {
     PlaySound(NULL, NULL, NULL);
     KillTimer(bHwnd, bTimer);
 
+    if (Draw && bigTextFormat && hgltBrush)
+    {
+        switch (CheckRecord())
+        {
+        case no_record:
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::DarkRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::Red));
+            Draw->EndDraw();
+            Sleep(110);
+            
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::IndianRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::OrangeRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::Yellow));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::LightYellow));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::WhiteSmoke));
+            Draw->DrawTextW(L"ЗОМБИТАТА ПОБЕДИХА !", 21, bigTextFormat, D2D1::RectF(20.0f, 200.0f, scr_width, scr_height), 
+                hgltBrush);
+            Draw->EndDraw();
+            if (sound)PlaySound(L".\\res\\snd\\loose.wav", NULL, SND_SYNC);
+            else Sleep(3000);
+            break;
+
+        case first_record:
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::DarkRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::Red));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::IndianRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::OrangeRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::Yellow));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::LightYellow));
+            Draw->EndDraw();
+            Sleep(110);
+            
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::WhiteSmoke));
+            Draw->DrawTextW(L"ПЪРВИ РЕКОРД НА ИГРАТА !", 25, bigTextFormat, D2D1::RectF(10.0f, 200.0f, scr_width, scr_height),
+                hgltBrush);
+            Draw->EndDraw();
+            if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+            else Sleep(3000);
+            break;
+
+        case record:
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::DarkRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::Red));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::IndianRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::OrangeRed));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::Yellow));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::LightYellow));
+            Draw->EndDraw();
+            Sleep(110);
+
+            Draw->BeginDraw();
+            Draw->Clear(D2D1::ColorF(D2D1::ColorF::WhiteSmoke));
+            Draw->DrawTextW(L"НОВ СВЕТОВЕН РЕКОРД !", 22, bigTextFormat, D2D1::RectF(10.0f, 200.0f, scr_width, scr_height),
+                hgltBrush);
+            Draw->EndDraw();
+            if (sound)PlaySound(L".\\res\\snd\\record.wav", NULL, SND_SYNC);
+            else Sleep(3000);
+            break;
+        }
+    }
 
     bMsg.message = WM_QUIT;
     bMsg.wParam = 0;
@@ -236,7 +441,7 @@ void InitGame()
                     vTrees.back().NewDims(78.0f, 86.0f);
                     break;
 
-                case 3:
+                case 2:
                     vTrees.back().SetFlag(tree3_flag);
                     vTrees.back().NewDims(98.0f, 90.0f);
                     break;
@@ -295,7 +500,7 @@ void LevelUp()
                     vTrees.back().NewDims(78.0f, 86.0f);
                     break;
 
-                case 3:
+                case 2:
                     vTrees.back().SetFlag(tree3_flag);
                     vTrees.back().NewDims(98.0f, 90.0f);
                     break;
@@ -303,6 +508,191 @@ void LevelUp()
             }
         }
     }
+}
+void SaveGame()
+{
+    int result{ 0 };
+    CheckFile(save_file, &result);
+    if (result == FILE_EXIST)
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+        if (MessageBox(bHwnd, L"Съществува предишна записана игра, която ще загубиш !\n\n Наистина ли я презаписваш ?",
+            L"Презапис !", MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)return;
+    }
+
+    std::wofstream save(save_file);
+
+    save << score << std::endl;
+    save << level << std::endl;
+    save << secs << std::endl;
+    for (int i = 0; i < 16; i++)save << static_cast<int>(current_player[i]) << std::endl;
+    save << name_set << std::endl;
+    save << killed_hero << std::endl;
+
+    save << vTrees.size() << std::endl;
+    if (vTrees.size() > 0)
+        for (int i = 0; i < vTrees.size(); ++i)
+        {
+            if (vTrees[i].GetFlag(tree1_flag))save << 1 << std::endl;
+            else if (vTrees[i].GetFlag(tree2_flag))save << 2 << std::endl;
+            if (vTrees[i].GetFlag(tree3_flag))save << 3 << std::endl;
+
+            save << vTrees[i].x << std::endl;
+            save << vTrees[i].y << std::endl;
+        }
+
+    if (Hero)
+    {
+        save << Hero->x << std::endl;
+        save << Hero->y << std::endl;
+        save << Hero->lifes << std::endl;
+    }
+
+    save << vZombies.size() << std::endl;
+    if (vZombies.size() > 0)
+        for (int i = 0; i < vZombies.size(); ++i)
+        {
+            if (vZombies[i]->GetFlag(zombie1_flag))save << 1 << std::endl;
+            else if (vZombies[i]->GetFlag(zombie2_flag))save << 2 << std::endl;
+            if (vZombies[i]->GetFlag(zombie3_flag))save << 3 << std::endl;
+
+            save << vZombies[i]->x << std::endl;
+            save << vZombies[i]->y << std::endl;
+            save << vZombies[i]->lifes << std::endl;
+        }
+
+    save.close();
+
+    if (sound)mciSendString(L"play .\\res\\snd\\save.wav", NULL, NULL, NULL);
+    MessageBox(bHwnd, L"Играта е запазена !", L"Запис !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
+}
+void LoadGame()
+{
+    int result{ 0 };
+    CheckFile(save_file, &result);
+    if (result == FILE_NOT_EXIST)
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+        MessageBox(bHwnd, L"Все още няма записана игра !\n\nПостарай се повече !", L"Липсва файл !",
+            MB_OK | MB_APPLMODAL | MB_ICONEXCLAMATION);
+        return;
+    }
+    else
+    {
+        if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+        if (MessageBox(bHwnd, L"Ако заредиш записаната игра, губиш тази !\n\nПрезареждаш ли играта  ?",
+            L"Презареждане !", MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)return;
+    }
+
+    ClearHeap(&Hero);
+    
+    if (!vZombies.empty())
+        for (int i = 0; i < vZombies.size(); i++)ClearHeap(&vZombies[i]);
+    vZombies.clear();
+    if (!vBullets.empty())
+        for (int i = 0; i < vBullets.size(); i++)ClearHeap(&vBullets[i]);
+    vBullets.clear();
+
+    vTrees.clear();
+
+    std::wifstream save(save_file);
+
+    save >> score;
+    save >> level;
+    save >> secs;
+    for (int i = 0; i < 16; i++)
+    {
+        int letter = 0;
+        save >> letter;
+        current_player[i] = static_cast<wchar_t>(letter);
+    }
+    save >> name_set;
+    save >> killed_hero;
+    if (killed_hero)
+    {
+        save.close();
+        GameOver();
+    }
+
+    save >> result;
+    if (result > 0)
+    {
+        for (int i = 0; i < result; ++i)
+        {
+            int atype{ -1 };
+            float temp_x{ 0 };
+            float temp_y{ 0 };
+
+            save >> atype;
+            save >> temp_x;
+            save >> temp_y;
+            
+            vTrees.push_back(dll::PROTON(temp_x, temp_y));
+
+            if (atype == 1)
+            {
+                vTrees.back().SetFlag(tree1_flag);
+                vTrees.back().NewDims(47.0f, 80.0f);
+            }
+            else if (atype == 2)
+            {
+                vTrees.back().SetFlag(tree2_flag);
+                vTrees.back().NewDims(78.0f, 86.0f);
+            }
+            else if (atype == 3)
+            {
+                vTrees.back().SetFlag(tree3_flag);
+                vTrees.back().NewDims(98.0f, 90.0f);
+            }
+        }
+    }
+
+    float hero_x{ 0 };
+    float hero_y{ 0 };
+    
+    save >> hero_x;
+    save >> hero_y;
+    save >> result;
+    Hero = dll::CreatureFactory(hero_flag, hero_x, hero_x);
+    Hero->lifes = result;
+
+    save >> result;
+    if (result > 0)
+    {
+        for (int i = 0; i < result; ++i)
+        {
+            int atype{ -1 };
+            float temp_x{ 0 };
+            float temp_y{ 0 };
+            int temp_lifes{ 0 };
+
+            save >> atype;
+            save >> temp_x;
+            save >> temp_y;
+            save >> temp_lifes;
+
+            switch (atype)
+            {
+            case 1:
+                vZombies.push_back(dll::CreatureFactory(zombie1_flag, temp_x, temp_y));
+                break;
+
+            case 2:
+                vZombies.push_back(dll::CreatureFactory(zombie2_flag, temp_x, temp_y));
+                break;
+
+            case 3:
+                vZombies.push_back(dll::CreatureFactory(zombie3_flag, temp_x, temp_y));
+                break;
+            }
+            vZombies.back()->lifes = temp_lifes;
+        }
+    }
+
+    save.close();
+
+    if (sound)mciSendString(L"play .\\res\\snd\\save.wav", NULL, NULL, NULL);
+    MessageBox(bHwnd, L"Играта е заредена !", L"Зареждане !", MB_OK | MB_APPLMODAL | MB_ICONINFORMATION);
 }
 
 INT_PTR CALLBACK bDlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lParam)
@@ -325,7 +715,7 @@ INT_PTR CALLBACK bDlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
             break;
 
         case IDOK:
-            if (GetDlgItemText(hwnd, IDC_NAME, current_player, 16 < 1))
+            if (GetDlgItemText(hwnd, IDC_NAME, current_player, 16) < 1)
             {
                 wcscpy_s(current_player, L"ONE CAPTAIN");
                 if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
@@ -334,7 +724,7 @@ INT_PTR CALLBACK bDlgProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
                 break;
             }
 
-            EndDialog(hwnd, IDCANCEL);
+            EndDialog(hwnd, IDOK);
         }
         break;
     }
@@ -351,7 +741,7 @@ LRESULT CALLBACK bWinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
         bMain = CreateMenu();
         bStore = CreateMenu();
         AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bMain), L"Основно меню");
-        AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bMain), L"Меню за данни");
+        AppendMenu(bBar, MF_POPUP, (UINT_PTR)(bStore), L"Меню за данни");
         AppendMenu(bMain, MF_STRING, mNew, L"Нова игра");
         AppendMenu(bMain, MF_STRING, mLvl, L"Следващо ниво");
         AppendMenu(bMain, MF_SEPARATOR, NULL, NULL);
@@ -471,28 +861,83 @@ LRESULT CALLBACK bWinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
         case mNew:
             pause = true;
             if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
-            if (MessageBox(hwnd, L"Ако рестартираш, губиш тази игра !\n\n Наистина ли рестартираш ?",
+            if (MessageBox(hwnd, L"Ако рестартираш, губиш тази игра !\n\nНаистина ли рестартираш ?",
                 L"Рестарт !", MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)
             {
                 pause = false;
                 break;
             }
             InitGame();
+            pause = false;
             break;
 
+        case mLvl:
+            pause = true;
+            if (sound)mciSendString(L"play .\\res\\snd\\exclamation.wav", NULL, NULL, NULL);
+            if (MessageBox(hwnd, L"Ако минеш на следващо ниво, губиш бонусите за това !\n\nМинаваш ли на следващо ниво ?",
+                L"Прескочи ниво !", MB_YESNO | MB_APPLMODAL | MB_ICONQUESTION) == IDNO)
+            {
+                pause = false;
+                break;
+            }
+            LevelUp();
+            pause = false;
+            break;
 
         case mExit:
             SendMessage(hwnd, WM_CLOSE, NULL, NULL);
             break;
 
+        case mSave:
+            pause = true;
+            SaveGame();
+            pause = false;
+            break;
 
+        case mLoad:
+            pause = true;
+            LoadGame();
+            pause = false;
+            break;
 
+        case mHoF:
+            pause = true;
+            HallOfFame();
+            pause = false;
+            break;
         }
         break;
 
     case WM_LBUTTONDOWN:
-        if (HIWORD(lParam <= 50))
+        if (HIWORD(lParam) <= 50)
         {
+            if (LOWORD(lParam) >= b1Rect.left && LOWORD(lParam) <= b1Rect.right)
+            {
+                if (name_set)
+                {
+                    if (sound)mciSendString(L"play .\\res\\snd\\negative.wav", NULL, NULL, NULL);
+                    break;
+                }
+                if (sound)mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+                if (DialogBox(bIns, MAKEINTRESOURCE(IDD_PLAYER), hwnd, &bDlgProc) == IDOK)name_set = true;
+                break;
+            }
+            if (LOWORD(lParam) >= b2Rect.left && LOWORD(lParam) <= b2Rect.right)
+            {
+                mciSendString(L"play .\\res\\snd\\select.wav", NULL, NULL, NULL);
+                if (sound)
+                {
+                    sound = false;
+                    PlaySound(NULL, NULL, NULL);
+                    break;
+                }
+                else
+                {
+                    sound = true;
+                    PlaySound(sound_file, NULL, SND_ASYNC | SND_LOOP);
+                    break;
+                }
+            }
 
         }
         else
@@ -505,8 +950,6 @@ LRESULT CALLBACK bWinProc(HWND hwnd, UINT ReceivedMsg, WPARAM wParam, LPARAM lPa
     case WM_RBUTTONDOWN:
         stop_hero = true;
         break;
-
-
 
     default: return DefWindowProc(hwnd, ReceivedMsg, wParam, lParam);
     }
@@ -807,9 +1250,9 @@ void CreateResources()
         if (iWriteFactory)
         {
             hr = iWriteFactory->CreateTextFormat(L"SEGOE", NULL, DWRITE_FONT_WEIGHT_EXTRA_BLACK, DWRITE_FONT_STYLE_OBLIQUE,
-                DWRITE_FONT_STRETCH_NORMAL, 24, L"", &nrmTextFormat);
+                DWRITE_FONT_STRETCH_NORMAL, 20, L"", &nrmTextFormat);
             hr = iWriteFactory->CreateTextFormat(L"SEGOE", NULL, DWRITE_FONT_WEIGHT_EXTRA_BLACK, DWRITE_FONT_STYLE_OBLIQUE,
-                DWRITE_FONT_STRETCH_NORMAL, 32, L"", &midTextFormat);
+                DWRITE_FONT_STRETCH_NORMAL, 28, L"", &midTextFormat);
             hr = iWriteFactory->CreateTextFormat(L"SEGOE", NULL, DWRITE_FONT_WEIGHT_EXTRA_BLACK, DWRITE_FONT_STYLE_OBLIQUE,
                 DWRITE_FONT_STRETCH_NORMAL, 72, L"", &bigTextFormat);
 
@@ -1019,10 +1462,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
             {
                 if (!(Hero->x > (*zombie)->ex || Hero->ex<(*zombie)->x || Hero->y>(*zombie)->ey || Hero->ey < (*zombie)->y))
                 {
-                    Hero->lifes -= (*zombie)->Attack();
+                    int damage = (*zombie)->Attack();
+                    if (sound && damage > 0)mciSendString(L"play .\\res\\snd\\evilatt.wav", NULL, NULL, NULL);
+                    Hero->lifes -= damage;
                     if (Hero->lifes <= 0)
                     {
-                        GameOver();
+                        killed_hero = true;
+                        RIP_x = Hero->x;
+                        RIP_y = Hero->y;
+                        Hero->Release();                      
+                        break;
                     }
                 }
             }
@@ -1074,6 +1523,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 
             wcscat_s(stat_txt, L", РЕЗУЛТАТ: ");
             wsprintf(add, L"%d", score);
+            wcscat_s(stat_txt, add);
+
+            wcscat_s(stat_txt, L", НИВО: ");
+            wsprintf(add, L"%d", level);
             wcscat_s(stat_txt, add);
 
             for (int i = 0; i < 250; i++)
@@ -1156,6 +1609,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
                 else
                     Draw->DrawBitmap(bmpTree3, D2D1::RectF(vTrees[i].x, vTrees[i].y, vTrees[i].ex, vTrees[i].ey));
             }
+        }
+
+        if (killed_hero)
+        {
+            Draw->DrawBitmap(bmpRIP, D2D1::RectF(RIP_x, RIP_y, RIP_x + 80.0f, RIP_y + 94.0f));
+            Draw->EndDraw();
+            PlaySound(NULL, NULL, NULL);
+            if (sound)PlaySound(L".\\res\\snd\\killed.wav", NULL, SND_SYNC);
+            else Sleep(3000);
+            GameOver();
         }
 
         //////////////////////////////////////////////////////////
